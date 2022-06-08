@@ -8,5 +8,10 @@
         "title": "Haircut",
         "text": "need to get a haircut at 12noon",
         "id": "ab53"
+    },
+    {
+        "title": "New Note",
+        "text": "this is a new note that will be added to the application",
+        "id": "ca00"
     }
 ]
