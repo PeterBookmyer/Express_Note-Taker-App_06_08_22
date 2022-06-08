@@ -3,21 +3,23 @@ const path = require("path");
 const notes = require("./db/db.json");
 const fs = require("fs");
 const uuid = require("./helpers/uuid");
+const req = require("express/lib/request");
+const res = require("express/lib/response");
 
-const PORT = 3001;
 const app = express();
+const PORT = 3001;
 
-//middlewares
+//middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-//HTML route homepage
+//GET route - homepage
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
-//HTML route notes
+//GET route - notes
 app.get("/notes", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/notes.html"));
 });
@@ -26,11 +28,56 @@ app.get("/notes", (req, res) => {
   res.status(200).json(notes);
 });
 
+//reads new note from user
+app.get("/api/notes", (req, res) => {
+  fs.readFile("./db/db.json", "utf8", (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json(err);
+    } else {
+      res.status(200).json(JSON.parse(data));
+    }
+  });
+});
+
+//POST new note from user
+app.post("/api/notes", async (req, res) => {
+  console.info(`${req.method} request received to get notes`);
+
+  const { title, text } = req.body;
+
+  if (title && text) {
+    await readAndAppend({ ...req.body, id: uuid() }, "db/db.json");
+    res.status(200).send("Post /api/notes route SUCCESS!");
+  } else {
+    res.status(400).send("bad request");
+  }
+});
+
+//DELETE notes from user
+app.delete("/api/notes/:id", (req, res) => {
+  const id = req.params.id;
+  console.log("delete note", id);
+  fs.readFile("./db/db.json", "utf-8", (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json(err);
+    } else {
+      let notes = JSON.parse(data);
+      let newNotes = notes.filter((note) => note.id != id);
+      writeToFile("./db/db.json", newNotes);
+      res.status(200).json(newNotes);
+    }
+  });
+});
+
+//defines my writeToFile function
 const writeToFile = (destination, content) =>
   fs.writeFile(destination, JSON.stringify(content, null, 4), (err) =>
     err ? console.error(err) : console.info(`\nData written to ${destination}`)
   );
 
+//defines my readAndAppend function
 const readAndAppend = (content, file) => {
   fs.readFile(file, "utf8", (err, data) => {
     if (err) {
@@ -42,31 +89,6 @@ const readAndAppend = (content, file) => {
     }
   });
 };
-
-app.get("/api/notes", (req, res) => {
-  res.json(`${req.method} request received to get notes`);
-  console.info(`${req.method} request received to get notes`);
-});
-
-// adds notes
-app.post("/api/notes", (req, res) => {
-  console.info(`${req.method} request received to add a note`);
-
-  const { noteTitle, noteText } = req.body;
-
-  if (req.body) {
-    const newNote = {
-      noteTitle,
-      noteText,
-      id: uuid(),
-    };
-
-    readAndAppend(newNote, "./db/db.json");
-    res.json(`note added successfully 🚀`);
-  } else {
-    res.error("Error in adding note");
-  }
-});
 
 //app listener
 app.listen(PORT, () =>
